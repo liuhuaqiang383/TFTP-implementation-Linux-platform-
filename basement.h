@@ -1,6 +1,4 @@
-
 //basement.h
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,3 +19,5 @@ enum
     OP_ACK = 4,  // 确认
     OP_ERROR = 5 // 错误
 };
+
+

@@ -1,9 +1,9 @@
-//myclient.c
-
+//以下是TFTP客户端代码
 #include "basement.h"
 
+ssize_t recv_data(int sockfd, struct sockaddr_in* server_addr, unsigned short* blocknum, char* buffer);
 
-void tftp_get(const char *server_ip, int server_port, const char *filename)
+void get_fuction(const char *server_ip, int server_port, const char *filename)
 {
     int sockfd;
     struct sockaddr_in server_addr;
@@ -57,7 +57,7 @@ void tftp_get(const char *server_ip, int server_port, const char *filename)
 
         // 写入文件
         fwrite(buffer + TFTP_DATA_PACKET_HEADER, 1, nBytes - TFTP_DATA_PACKET_HEADER, file);
-        printf("block received %d\n", blocknum);
+        //printf("block received %d\n", blocknum);
 
         // 发送ACK
         send_ack(sockfd, &server_addr, blocknum);
@@ -71,7 +71,7 @@ void tftp_get(const char *server_ip, int server_port, const char *filename)
     close(sockfd);
 }
 
-void tftp_put(const char *server_ip, int server_port, const char *filename)
+void put_fuction(const char *server_ip, int server_port, const char *filename)
 {
     int sockfd;
     struct sockaddr_in server_addr;
@@ -213,8 +213,57 @@ void send_ack(int sockfd, const struct sockaddr_in *server_addr, unsigned short 
     }
 }
 
-ssize_t recv_data(int sockfd, struct sockaddr_in *server_addr, unsigned short *blocknum, char *buffer)
+
+void send_data(int sockfd, const struct sockaddr_in *server_addr, unsigned short blocknum, const char *buffer, int buflen)
 {
+    char packet[TFTP_BLOCK_SIZE + TFTP_DATA_PACKET_HEADER];
+    int packetlen = TFTP_DATA_PACKET_HEADER + buflen;
+    // 创建数据包头部
+    packet[0] = 0;
+    packet[1] = OP_DATA;
+    packet[2] = (blocknum >> 8) & 0xFF;
+    packet[3] = blocknum & 0xFF;
+    // 拷贝数据到数据包
+    memcpy(packet + TFTP_DATA_PACKET_HEADER, buffer, buflen);
+
+    // 发送数据包
+    if (sendto(sockfd, packet, packetlen, 0, (struct sockaddr *)server_addr, sizeof(struct sockaddr_in)) != packetlen)
+    {
+        perror("Data sending failed");
+        close(sockfd);
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+int main(int argc, char* argv[]) {
+    
+    int server_port = TFTP_PORT;
+    
+    if (argc != 4) {
+        printf("The client usage：%s <server IP> <get/put> <filename>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    const char* server_ip = argv[1];
+    const char* command = argv[2];
+    const char* filename = argv[3];
+
+    if (strcmp(command, "get") == 0) {
+        tftp_get(server_ip, server_port, filename);
+    } else if (strcmp(command, "put") == 0) {
+        tftp_put(server_ip, server_port, filename);
+    } else {
+        printf("Unsupported command：%s\n", command);
+        exit(EXIT_FAILURE);
+    }
+
+    return 0;
+}
+
+
+ssize_t recv_data(int sockfd, struct sockaddr_in *server_addr, unsigned short *blocknum, char *buffer){
+    
     socklen_t addrlen = sizeof(struct sockaddr_in);
     ssize_t nBytes = recvfrom(sockfd, buffer, TFTP_BLOCK_SIZE + TFTP_DATA_PACKET_HEADER, 0, (struct sockaddr *)server_addr, &addrlen);
 
@@ -240,48 +289,4 @@ ssize_t recv_data(int sockfd, struct sockaddr_in *server_addr, unsigned short *b
     return nBytes;
 }
 
-void send_data(int sockfd, const struct sockaddr_in *server_addr, unsigned short blocknum, const char *buffer, int buflen)
-{
-    char packet[TFTP_BLOCK_SIZE + TFTP_DATA_PACKET_HEADER];
-    int packetlen = TFTP_DATA_PACKET_HEADER + buflen;
-    // 创建数据包头部
-    packet[0] = 0;
-    packet[1] = OP_DATA;
-    packet[2] = (blocknum >> 8) & 0xFF;
-    packet[3] = blocknum & 0xFF;
-    // 拷贝数据到数据包
-    memcpy(packet + TFTP_DATA_PACKET_HEADER, buffer, buflen);
-
-    // 发送数据包
-    if (sendto(sockfd, packet, packetlen, 0, (struct sockaddr *)server_addr, sizeof(struct sockaddr_in)) != packetlen)
-    {
-        perror("Data sending failed");
-        close(sockfd);
-        exit(EXIT_FAILURE);
-    }
-}
-
-int main(int argc, char* argv[]) {
-    
-    if (argc != 5) {
-        printf("The client usage：%s <server IP> <port> <get/put> <filename>\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    const char* server_ip = argv[1];
-    int server_port = atoi(argv[2]);
-    const char* command = argv[3];
-    const char* filename = argv[4];
-
-    if (strcmp(command, "get") == 0) {
-        tftp_get(server_ip, server_port, filename);
-    } else if (strcmp(command, "put") == 0) {
-        tftp_put(server_ip, server_port, filename);
-    } else {
-        printf("Unsupported command：%s\n", command);
-        exit(EXIT_FAILURE);
-    }
-
-    return 0;
-}
 

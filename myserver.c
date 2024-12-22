@@ -1,6 +1,4 @@
-
-// myserver.c
-
+// 以下是TFTP服务器代码
 #include "basement.h"
 
 
@@ -176,7 +174,7 @@ int main() {
     // 绑定套接字到TFTP端口
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(DEFAULT_PORT);
+    server_addr.sin_port = htons(TFTP_PORT);
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
@@ -219,14 +217,14 @@ int main() {
         
         options++; // 跳过结束的0
 
-        int block_size = DEFAULT_BLOCK_SIZE;
+        int block_size = TFTP_BLOCK_SIZE;
         while (options < buffer + received_bytes) {
             if (strcasecmp(options, "blksize") == 0) {
                 options += strlen(options) + 1;
                 block_size = atoi(options);
                 if (block_size < 1 || block_size > MAX_BUFFER) {
                     send_error(sock, &client_addr, client_len, 0, "Invalid block size");
-                    block_size = DEFAULT_BLOCK_SIZE;
+                    block_size = TFTP_BLOCK_SIZE;
                 }
                 break;
             }
